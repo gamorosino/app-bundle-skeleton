@@ -1,23 +1,25 @@
 #!/bin/bash
 set -euo pipefail
 
-# Brainlife runs this script in the task working directory where config.json is present.
-# Apps are expected to read config.json and write outputs under ./ in datatype structure. citeturn2view1turn23search5
+CONFIG="${CONFIG:-config.json}"
+[ -f "$CONFIG" ] || { echo "ERROR: Missing config.json: $CONFIG" >&2; exit 1; }
 
-CONFIG="config.json"
-[ -f "$CONFIG" ] || { echo "ERROR: Missing config.json" >&2; exit 1; }
-
-# Parse config with python (avoids jq dependency).
-python3 - <<'PY'
-import json, os, sys
+# Parse config with python and emit shell-safe CLI args.
+ARGS="$(
+python3 - "$CONFIG" <<'PY'
+import json
+import shlex
+import sys
 from pathlib import Path
 
-with open("config.json","r") as f:
+config_path = Path(sys.argv[1])
+
+with open(config_path, "r") as f:
     cfg = json.load(f)
 
 # Required paths
 tck = cfg.get("tck")
-t1  = cfg.get("t1")
+t1 = cfg.get("t1")
 
 if not tck or not Path(tck).exists():
     raise SystemExit(f"ERROR: config['tck'] missing or not found: {tck}")
@@ -27,8 +29,6 @@ if not t1 or not Path(t1).exists():
 # Output path (force Brainlife datatype layout)
 out_default = "track/track.tck"
 track_out = cfg.get("track_out", out_default)
-
-# Enforce that we write inside ./track/ for track/tck datatype
 track_out = str(Path("track") / Path(track_out).name)
 
 # Optional params (mirror shell defaults)
@@ -42,21 +42,38 @@ endpoint_mode = cfg.get("endpoint_mode", "median")
 representative = bool(cfg.get("representative", False))
 spline_smooth = cfg.get("spline_smooth", None)
 
+# Basic validation
+if N_points < 2:
+    raise SystemExit("ERROR: N_points must be >= 2")
+if average_type not in {"mean", "median"}:
+    raise SystemExit(f"ERROR: average_type must be 'mean' or 'median'. Got: {average_type}")
+if endpoint_mode not in {"mean", "median", "median_project"}:
+    raise SystemExit(
+        f"ERROR: endpoint_mode must be 'mean', 'median', or 'median_project'. Got: {endpoint_mode}"
+    )
+
+# Ensure output dir exists before container execution
+Path("track").mkdir(parents=True, exist_ok=True)
+
 # Build CLI for bundle_skeleton.py
 args = [
-    sys.executable, "bundle_skeleton.py",
-    tck, track_out, t1,
+    "bundle_skeleton.py",
+    tck,
+    track_out,
+    t1,
     "--length-thr", str(length_thr),
     "--n-points", str(N_points),
     "--average-type", average_type,
     "--endpoint-mode", endpoint_mode,
 ]
+
 if perc is None:
     args += ["--perc", "0"]
 else:
     args += ["--perc", str(float(perc))]
 
 args += ["--smooth-density" if smooth_density else "--no-smooth-density"]
+
 if keep_endpoints:
     args += ["--keep-endpoints"]
 if representative:
@@ -64,9 +81,13 @@ if representative:
 if spline_smooth is not None:
     args += ["--spline-smooth", str(float(spline_smooth))]
 
-# Ensure output dir exists
-Path("track").mkdir(parents=True, exist_ok=True)
-
-print("Running:", " ".join(args))
-os.execv(sys.executable, args)
+print(" ".join(shlex.quote(a) for a in args))
 PY
+)"
+
+echo "Running inside container:"
+echo "singularity exec -e docker://gamorosino/tract_align:latest micromamba run -n tract_align python3 $ARGS"
+
+singularity exec -e docker://gamorosino/tract_align:latest \
+    micromamba run -n tract_align \
+    python3 $ARGS
