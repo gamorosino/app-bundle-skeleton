@@ -7,8 +7,8 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-# Local import (vendored tracklib.py in repo root)
-from tracklib import get_bundle_backbone
+# Local import (vendored utils.py in repo root)
+from utils import get_bundle_backbone
 
 LOG = logging.getLogger("bundle_skeleton")
 
@@ -35,7 +35,7 @@ def _pos_float(p: str) -> float:
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="bundle_skeleton.py",
-        description="Compute bundle backbone / skeleton from streamline bundle (.tck) using tracklib.get_bundle_backbone().",
+        description="Compute bundle backbone / skeleton from streamline bundle (.tck) using utils.get_bundle_backbone().",
     )
     ap.add_argument("track_in", type=_existing_file, help="Input bundle tractogram (.tck expected).")
     ap.add_argument("track_out", type=str, help="Output tractogram path (will be written).")
@@ -83,7 +83,7 @@ def main() -> None:
     out_path = Path(args.track_out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Call tracklib. In tracklib, perc==0 triggers the non-core path; this matches your shell wrapper behaviour. fileciteturn0file0
+    # Call utils. In utils, perc==0 triggers the non-core path; this matches your shell wrapper behaviour. fileciteturn0file0
     get_bundle_backbone(
         args.track_in,
         str(out_path),
