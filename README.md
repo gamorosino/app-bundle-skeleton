@@ -1,70 +1,92 @@
-# Bundle Skeleton Computation (app-bundle-skeleton)
+<h1 align="center">Fiber Bundle Skeleton Computation</h1>
 
-`app-bundle-skeleton` computes a streamline bundle skeleton (also referred to as backbone or centreline) from a tractography bundle using `bundle_skeleton.py` (based on `tracklib.get_bundle_backbone`). 
+<p align="center">
+  Computes the skeleton (backbone or centreline) of a white matter bundle from a .tck file with a DIPY-based tool and outputs it as a .tck.
+</p>
 
-Repository contents:
+<p align="center">
+  <a href="https://github.com/brainlife/abcd-spec"><img src="https://img.shields.io/badge/ABCD_Spec-v1.1-green.svg" alt="ABCD Spec v1.1"></a>
+  <a href="https://doi.org/10.25663/brainlife.app.915"><img src="https://img.shields.io/badge/Brainlife-brainlife.app.915-blue.svg" alt="Run on brainlife.io"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-see_LICENSE-lightgrey.svg" alt="License"></a>
+</p>
 
-* `bundle_skeleton.py`: Python CLI that computes the bundle skeleton/backbone.
-* `main`: Bash wrapper that reads `config.json` and executes the pipeline in a Brainlife-compatible way.
-* `tracklib.py`: Implementation of backbone computation.
+## At a glance
 
----
+<!-- brainlife-app:begin (generated from the App manifest; edit the manifest, not this block) -->
 
-## Author
+> **Computes the skeleton (backbone or centreline) of a white matter bundle from a .tck file with a DIPY-based tool and outputs it as a .tck.**
 
-Gabriele Amorosino (g.amorosino@gmail.com)
+Runs bundle_skeleton.py: selects the core streamlines of the bundle, resamples them to N_points and averages them into one representative backbone, or optionally returns the streamline closest to it. Use it to get a single centreline for tract profiling or visualisation. Needs a single bundle and a reference T1w image in the same space.
 
-## Citation
+| | |
+|---|---|
+| **Inputs** | `neuro/track/tck` · `neuro/anat/t1w` |
+| **Outputs** | `neuro/track/tck` |
+| **Container** | `gamorosino/tract_align:latest` |
+| **Run it** | [doi.org/10.25663/brainlife.app.915](https://doi.org/10.25663/brainlife.app.915) |
 
-If you use this app in your research, please cite:
+#### Inputs
 
-Amorosino, G., Olivetti, E., Jovicich, J., & Avesani, P. (2023, April).
-How Does White Matter Registration Affect Tractography Alignment?
-In 2023 IEEE 20th International Symposium on Biomedical Imaging (ISBI) (pp. 1–5). IEEE.
-https://doi.org/10.1109/ISBI53787.2023.10230615
+| Input | Datatype | Required | Description |
+|---|---|---|---|
+| `track` | `neuro/track/tck` | yes | Single white matter bundle (.tck). |
+| `t1` | `neuro/anat/t1w` | yes | Reference T1-weighted image in the same space as the bundle. |
 
-This app also relies on several functions from DIPY. Please also cite:
+#### Outputs
 
-Garyfallidis, E., Brett, M., Amirbekian, B., Rokem, A., Van Der Walt, S., Descoteaux, M., et al. (2014).
-DIPY, a library for the analysis of diffusion MRI data.
-Frontiers in Neuroinformatics, 8, 8.
+| Output | Datatype | Description |
+|---|---|---|
+| `track` | `neuro/track/tck` | Bundle skeleton (or representative streamline) as track.tck. |
 
----
+<details>
+<summary><b>Parameters</b> (9)</summary>
 
-## Usage
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `perc` | number | `0.75` | Core streamline percentile used to select the bundle core (0 disables). |
+| `length_thr` | number | `0.75` | Keep streamlines longer than length_thr times the maximum length. |
+| `smooth_density` | boolean | `false` | Enable density smoothing in core selection. |
+| `N_points` | number | `100` | Number of points used to resample each streamline. |
+| `keep_endpoints` | boolean | `false` | Use endpoint_mode for endpoints and preserve them through smoothing. |
+| `average_type` | enum | `mean` | Aggregation method for interior points (mean or median). Options: `mean`, `median`. |
+| `endpoint_mode` | enum | `median` | Endpoint aggregation method when keep_endpoints is enabled. Options: `median`, `mean`, `median_project`. |
+| `representative` | boolean | `false` | Output the streamline closest to the backbone instead of the backbone. |
+| `spline_smooth` | boolean | `false` | Apply spline smoothing to the backbone. |
 
-### Running on Brainlife.io
+</details>
 
-Use the Brainlife UI as usual:
+<!-- brainlife-app:end -->
 
-* Provide a `track/tck` input bundle
-* Provide a `neuro/anat/t1w` reference image
-* Configure parameters (optional)
-* Run the app
+## Running the App
 
-### Running locally
+### On brainlife.io
 
-#### Prerequisites
+Open the App at [doi.org/10.25663/brainlife.app.915](https://doi.org/10.25663/brainlife.app.915), choose `neuro/track/tck`, `neuro/anat/t1w` from your project, set the parameters and press **Execute**. The results are saved to your project as `neuro/track/tck`.
 
-* Python 3.x
-* Required Python libraries (`numpy`, `scipy`, `nibabel`, `dipy`)
+### Locally
 
-#### Steps
+You need [Singularity/Apptainer](https://apptainer.org/) (the App runs in `gamorosino/tract_align:latest`), [`jq`](https://jqlang.github.io/jq/).
 
-```bash
-git clone https://github.com/your-username/app-bundle-skeleton.git
-cd app-bundle-skeleton
-chmod +x main
-./main
-```
+1. Clone this repository.
+2. Create `config.json` with the paths to your inputs and the parameters:
 
-You can also specify a custom config:
+   ```json
+   {
+       "tck": "/path/to/track/tck",
+       "t1": "/path/to/t1/t1",
+       "perc": 0.75,
+       "length_thr": 0.75,
+       "smooth_density": false,
+       "N_points": 100,
+       "keep_endpoints": false,
+       "average_type": "mean",
+       "endpoint_mode": "median",
+       "representative": false,
+       "spline_smooth": false
+   }
+   ```
 
-```bash
-CONFIG=/path/to/config.json ./main
-```
-
----
+3. Run `./main`.
 
 ## Execution model
 
@@ -84,7 +106,7 @@ This follows the Brainlife app contract (config-driven execution and datatype-ba
 
 All keys are in **snake_case** and mapped to CLI arguments.
 
-### 1) Inputs
+## 1) Inputs
 
 | config key |   Type | CLI mapping | Notes                          |
 | ---------- | -----: | ----------- | ------------------------------ |
@@ -93,7 +115,7 @@ All keys are in **snake_case** and mapped to CLI arguments.
 
 ---
 
-### 2) Core parameters
+## 2) Core parameters
 
 | config key       |  Type | CLI flag           | Default  |
 | ---------------- | ----: | ------------------ | -------- |
@@ -104,7 +126,7 @@ All keys are in **snake_case** and mapped to CLI arguments.
 
 ---
 
-### 3) Backbone computation options
+## 3) Backbone computation options
 
 | config key       |   Type | CLI flag           | Default |
 | ---------------- | -----: | ------------------ | ------- |
@@ -119,7 +141,7 @@ Valid values:
 
 ---
 
-### 4) Output mode options
+## 4) Output mode options
 
 | config key       |  Type | CLI flag           | Default  |
 | ---------------- | ----: | ------------------ | -------- |
@@ -160,9 +182,7 @@ This pipeline is implemented in `get_bundle_backbone(...)`.
 
 ---
 
-## Example configs
-
-### Example 1 — Default backbone
+## Example 1 — Default backbone
 
 ```json
 {
@@ -171,7 +191,7 @@ This pipeline is implemented in `get_bundle_backbone(...)`.
 }
 ```
 
-### Example 2 — Core streamline selection
+## Example 2 — Core streamline selection
 
 ```json
 {
@@ -183,7 +203,7 @@ This pipeline is implemented in `get_bundle_backbone(...)`.
 }
 ```
 
-### Example 3 — Representative streamline + smoothing
+## Example 3 — Representative streamline + smoothing
 
 ```json
 {
@@ -198,15 +218,20 @@ This pipeline is implemented in `get_bundle_backbone(...)`.
 
 ---
 
-## Outputs
+## Citing
 
-Outputs are written under `./track/`:
+If you use this App, please cite it, the software it builds on and brainlife.io:
 
-* `track.tck`: bundle skeleton/backbone (single streamline)
-* `product.json`: summary of parameters (optional)
+- Fiber Bundle Skeleton Computation. brainlife.io App. [doi:10.25663/brainlife.app.915](https://doi.org/10.25663/brainlife.app.915)
+- Amorosino G, Olivetti E, Jovicich J, Avesani P. How Does White Matter Registration Affect Tractography Alignment? IEEE ISBI (2023). [doi:10.1109/ISBI53787.2023.10230615](https://doi.org/10.1109/ISBI53787.2023.10230615)
+- Garyfallidis E, et al. Dipy, a library for the analysis of diffusion MRI data. Front Neuroinform 8:8 (2014). [doi:10.3389/fninf.2014.00008](https://doi.org/10.3389/fninf.2014.00008)
+- Hayashi S, Caron BA, Heinsfeld AS, et al. brainlife.io: a decentralized and open-source cloud platform to support neuroscience research. *Nature Methods* 21:809–813 (2024). [doi:10.1038/s41592-024-02237-2](https://doi.org/10.1038/s41592-024-02237-2)
+- Avesani P, McPherson B, Hayashi S, et al. The open diffusion data derivatives, brain data upcycling via integrated publishing of derivatives and reproducible open cloud services. *Scientific Data* 6:69 (2019). [doi:10.1038/s41597-019-0073-y](https://doi.org/10.1038/s41597-019-0073-y)
 
----
+## Authors
+
+Gabriele Amorosino
 
 ## License
 
-MIT License. See `LICENSE` file for details.
+See [LICENSE](LICENSE).
